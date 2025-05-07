@@ -37,7 +37,7 @@ static struct {
   struct udev_monitor*  udev_mon;
   LUMouse*              mice;
   bool                  stopped;
-} g = { };
+} g = { 0 };
 
 #define msg(...) printf("luscroll | " __VA_ARGS__); printf("\n")
 
@@ -78,9 +78,13 @@ static void check_register_mouse(const char* path) {
 
     int ev_status = libevdev_new_from_fd(mouse->fd, &mouse->dev);
     if (ev_status >= 0) {
-      const bool is_mouse =
+      bool is_mouse =
         libevdev_has_event_type(mouse->dev, EV_REL) &&
         libevdev_has_event_code(mouse->dev, EV_KEY, BTN_MIDDLE);
+
+      // @@: This is to prevent a feedback loop caused by hooking uinput devices.
+      // This is not very robust and should be implemented differeently.
+      is_mouse &= libevdev_get_phys(mouse->dev) != 0;
 
       if (is_mouse) {
         ev_status = libevdev_uinput_create_from_device(mouse->dev, LIBEVDEV_UINPUT_OPEN_MANAGED, &mouse->dev_uinput);
